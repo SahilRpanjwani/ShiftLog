@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Upload History — ShiftLog{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4>Upload History <span class="text-muted fs-6">({{ total_count }})</span></h4>
+    <a href="{% url 'documents:upload' %}" class="btn btn-dark btn-sm">+ Upload</a>
+</div>
+
+<form method="get" class="row g-2 mb-4">
+    <div class="col-md-6">
+        <input type="text" name="search" class="form-control" placeholder="Search filename, work order, machine..." value="{{ search_query }}">
+    </div>
+    <div class="col-md-3">
+        <select name="status" class="form-select">
+            <option value="">All Statuses</option>
+            {% for value, label in status_choices %}
+            <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-2">
+        <button type="submit" class="btn btn-outline-dark w-100">Filter</button>
+    </div>
+</form>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-dark">
+                <tr>
+                    <th>Filename</th>
+                    <th>Uploaded</th>
+                    <th>Status</th>
+                    <th>Confidence</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for doc in page_obj %}
+                <tr>
+                    <td>{{ doc.original_filename }}</td>
+                    <td>{{ doc.uploaded_at|date:"d M Y, H:i" }}</td>
+                    <td>
+                        {% if doc.status == "reviewed" %}
+                            <span class="badge bg-success">Reviewed</span>
+                        {% elif doc.status == "extracted" %}
+                            <span class="badge bg-primary">Extracted</span>
+                        {% elif doc.status == "processing" %}
+                            <span class="badge bg-warning text-dark">Processing</span>
+                        {% elif doc.status == "failed" %}
+                            <span class="badge bg-danger">Failed</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Pending</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if doc.record %}
+                            {{ doc.record.overall_confidence|floatformat:0 }}%
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'documents:document_detail' doc.pk %}" class="btn btn-sm btn-outline-secondary">View</a>
+                        <a href="{% url 'documents:review' doc.pk %}" class="btn btn-sm btn-outline-dark">Review</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center text-muted py-4">No documents found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if page_obj.has_other_pages %}
+<nav class="mt-3">
+    <ul class="pagination">
+        {% if page_obj.has_previous %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&search={{ search_query }}&status={{ status_filter }}">Previous</a></li>
+        {% endif %}
+        <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span></li>
+        {% if page_obj.has_next %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&search={{ search_query }}&status={{ status_filter }}">Next</a></li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}

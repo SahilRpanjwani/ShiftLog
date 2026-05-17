@@ -1,0 +1,41 @@
+# Environment
+.env
+.env.local
+
+# Django
+db.sqlite3
+media/
+staticfiles/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+migrations/__pycache__/
+
+# Python
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Test files
+test_*.py

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}{{ document.original_filename }} — ShiftLog{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4>{{ document.original_filename }}</h4>
+    <div class="d-flex gap-2">
+        <a href="{% url 'documents:review' document.pk %}" class="btn btn-dark btn-sm">Edit / Review</a>
+        <form method="post" action="{% url 'documents:re_extract' document.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-secondary btn-sm" onclick="return confirm('Re-run extraction on this document?')">Re-extract</button>
+        </form>
+        <form method="post" action="{% url 'documents:delete_document' document.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete this document?')">Delete</button>
+        </form>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- File Preview -->
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-header">Document Preview</div>
+            <div class="card-body text-center">
+                {% if document.file_type == "image" %}
+                    <img src="{{ document.file.url }}" class="img-fluid rounded" alt="Document preview">
+                {% else %}
+                    <embed src="{{ document.file.url }}" type="application/pdf" width="100%" height="500px">
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Extracted Fields -->
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between">
+                <span>Extracted Data</span>
+                {% if record %}
+                    <span class="text-muted small">Overall confidence: {{ record.overall_confidence|floatformat:0 }}%</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if record %}
+                    {% if record.has_validation_errors %}
+                    <div class="alert alert-warning py-2">
+                        {{ record.validation_errors|length }} validation issue(s) — <a href="{% url 'documents:review' document.pk %}">fix in review</a>
+                    </div>
+                    {% endif %}
+
+                    {% if record.is_reviewed %}
+                    <div class="alert alert-success py-2">Reviewed ✓</div>
+                    {% endif %}
+
+                    <!-- Direct field display -->
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr><td class="text-muted">Date</td><td>{{ record.date|default:"—" }}</td><td>{% include "documents/_confidence.html" with fc=field_confidences.date %}</td></tr>
+                            <tr><td class="text-muted">Shift</td><td>{{ record.shift|default:"—" }}</td><td>{% include "documents/_confidence.html" with fc=field_confidences.shift %}</td></tr>
+                            <tr><td class="text-muted">Employee No.</td><td>{{ record.employee_number|default:"—" }}</td><td>{% include "documents/_confidence.html" with fc=field_confidences.employee_number %}</td></tr>
+                            <tr><td class="text-muted">Operation Code</td><td>{{ record.operation_code|default:"—" }}</td><td>{% include "documents/_confidence.html" with fc=field_confidences.operation_code %}</td></tr>
+                            <tr><td class="text-muted">Machine No.</td><td>{{ record.machine_number|default:"—" }}</td><td>{% include "documents/_confidence.html" with fc=field_confidences.machine_number %}</td></tr>
+                            <tr><td class="text-muted">Work Order</td><td>{{ record.work_order_number|default:"—" }}</td><td>{% include "documents/_confidence.html" with fc=field_confidences.work_order_number %}</td></tr>
+                            <tr><td class="text-muted">Quantity Produced</td><td>{{ record.quantity_produced|default:"—" }}</td><td>{% include "documents/_confidence.html" with fc=field_confidences.quantity_produced %}</td></tr>
+                            <tr><td class="text-muted">Time Taken (hrs)</td><td>{{ record.time_taken|default:"—" }}</td><td>{% include "documents/_confidence.html" with fc=field_confidences.time_taken %}</td></tr>
+                        </tbody>
+                    </table>
+
+                    {% if record.reviewer_notes %}
+                    <div class="mt-2">
+                        <strong>Reviewer Notes:</strong>
+                        <p class="text-muted mb-0">{{ record.reviewer_notes }}</p>
+                    </div>
+                    {% endif %}
+
+                {% else %}
+                    <p class="text-muted">Extraction failed or not yet processed.</p>
+                    <a href="{% url 'documents:review' document.pk %}" class="btn btn-dark btn-sm">Enter data manually</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-3">
+    <a href="{% url 'documents:document_list' %}" class="text-muted small">← Back to history</a>
+</div>
+{% endblock %}

@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Review — {{ document.original_filename }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4>Review: {{ document.original_filename }}</h4>
+    <a href="{% url 'documents:document_detail' document.pk %}" class="btn btn-outline-secondary btn-sm">View Only</a>
+</div>
+
+<div class="row g-4">
+    <!-- Preview -->
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">Document</div>
+            <div class="card-body text-center">
+                {% if document.file_type == "image" %}
+                    <img src="{{ document.file.url }}" class="img-fluid rounded" alt="preview">
+                {% else %}
+                    <embed src="{{ document.file.url }}" type="application/pdf" width="100%" height="400px">
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Editable Form -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">Edit Extracted Fields</div>
+            <div class="card-body">
+                {% if record.has_validation_errors %}
+                <div class="alert alert-warning py-2">
+                    {{ record.validation_errors|length }} validation issue(s) found — fields highlighted below.
+                </div>
+                {% endif %}
+
+                <form method="post">
+                    {% csrf_token %}
+
+                    <!-- Date -->
+                    <div class="mb-3 {% if validation_error_map.date %}field-uncertain{% endif %}">
+                        <label class="form-label">Date
+                            {% with fc=field_confidences.date %}{% include "documents/_confidence.html" %}{% endwith %}
+                        </label>
+                        <input type="date" name="date" class="form-control" value="{{ record.date|date:'Y-m-d' }}">
+                        {% if validation_error_map.date %}<small>{{ validation_error_map.date }}</small>{% endif %}
+                    </div>
+
+                    <!-- Shift -->
+                    <div class="mb-3 {% if validation_error_map.shift %}field-uncertain{% endif %}">
+                        <label class="form-label">Shift
+                            {% with fc=field_confidences.shift %}{% include "documents/_confidence.html" %}{% endwith %}
+                        </label>
+                        <select name="shift" class="form-select">
+                            <option value="">— Unknown —</option>
+                            {% for value, label in shift_choices %}
+                            {% if value %}
+                            <option value="{{ value }}" {% if record.shift == value %}selected{% endif %}>{{ label }}</option>
+                            {% endif %}
+                            {% endfor %}
+                        </select>
+                        {% if validation_error_map.shift %}<small>{{ validation_error_map.shift }}</small>{% endif %}
+                    </div>
+
+                    <!-- Employee Number -->
+                    <div class="mb-3 {% if validation_error_map.employee_number %}field-uncertain{% endif %}">
+                        <label class="form-label">Employee Number
+                            {% with fc=field_confidences.employee_number %}{% include "documents/_confidence.html" %}{% endwith %}
+                        </label>
+                        <input type="text" name="employee_number" class="form-control" value="{{ record.employee_number }}">
+                        {% if validation_error_map.employee_number %}<small>{{ validation_error_map.employee_number }}</small>{% endif %}
+                    </div>
+
+                    <!-- Operation Code -->
+                    <div class="mb-3">
+                        <label class="form-label">Operation Code
+                            {% with fc=field_confidences.operation_code %}{% include "documents/_confidence.html" %}{% endwith %}
+                        </label>
+                        <input type="text" name="operation_code" class="form-control" value="{{ record.operation_code }}">
+                    </div>
+
+                    <!-- Machine Number -->
+                    <div class="mb-3 {% if validation_error_map.machine_number %}field-uncertain{% endif %}">
+                        <label class="form-label">Machine Number
+                            {% with fc=field_confidences.machine_number %}{% include "documents/_confidence.html" %}{% endwith %}
+                        </label>
+                        <input type="text" name="machine_number" class="form-control" value="{{ record.machine_number }}" placeholder="e.g. MC-001">
+                        {% if validation_error_map.machine_number %}<small>{{ validation_error_map.machine_number }}</small>{% endif %}
+                    </div>
+
+                    <!-- Work Order Number -->
+                    <div class="mb-3 {% if validation_error_map.work_order_number %}field-uncertain{% endif %}">
+                        <label class="form-label">Work Order Number
+                            {% with fc=field_confidences.work_order_number %}{% include "documents/_confidence.html" %}{% endwith %}
+                        </label>
+                        <input type="text" name="work_order_number" class="form-control" value="{{ record.work_order_number }}">
+                        {% if validation_error_map.work_order_number %}<small>{{ validation_error_map.work_order_number }}</small>{% endif %}
+                    </div>
+
+                    <!-- Quantity Produced -->
+                    <div class="mb-3 {% if validation_error_map.quantity_produced %}field-uncertain{% endif %}">
+                        <label class="form-label">Quantity Produced
+                            {% with fc=field_confidences.quantity_produced %}{% include "documents/_confidence.html" %}{% endwith %}
+                        </label>
+                        <input type="number" name="quantity_produced" class="form-control" value="{{ record.quantity_produced }}">
+                        {% if validation_error_map.quantity_produced %}<small>{{ validation_error_map.quantity_produced }}</small>{% endif %}
+                    </div>
+
+                    <!-- Time Taken -->
+                    <div class="mb-3 {% if validation_error_map.time_taken %}field-uncertain{% endif %}">
+                        <label class="form-label">Time Taken (hours)
+                            {% with fc=field_confidences.time_taken %}{% include "documents/_confidence.html" %}{% endwith %}
+                        </label>
+                        <input type="number" step="0.1" name="time_taken" class="form-control" value="{{ record.time_taken }}">
+                        {% if validation_error_map.time_taken %}<small>{{ validation_error_map.time_taken }}</small>{% endif %}
+                    </div>
+
+                    <!-- Reviewer Notes -->
+                    <div class="mb-3">
+                        <label class="form-label">Reviewer Notes</label>
+                        <textarea name="reviewer_notes" class="form-control" rows="2">{{ record.reviewer_notes }}</textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-dark w-100">Save & Mark Reviewed</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-3">
+    <a href="{% url 'documents:document_list' %}" class="text-muted small">← Back to history</a>
+</div>
+{% endblock %}

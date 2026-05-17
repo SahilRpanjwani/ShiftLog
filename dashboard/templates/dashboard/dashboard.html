@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — ShiftLog{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4>Dashboard</h4>
+    <div>
+        <a href="?range=30d" class="btn btn-sm {% if date_range == '30d' %}btn-dark{% else %}btn-outline-dark{% endif %}">Last 30 days</a>
+        <a href="?range=all" class="btn btn-sm {% if date_range == 'all' %}btn-dark{% else %}btn-outline-dark{% endif %}">All time</a>
+    </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-2">
+        <div class="card text-center">
+            <div class="card-body py-3">
+                <div class="fs-3 fw-bold">{{ total_uploads }}</div>
+                <div class="text-muted small">Uploads</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-2">
+        <div class="card text-center">
+            <div class="card-body py-3">
+                <div class="fs-3 fw-bold text-success">{{ total_reviewed }}</div>
+                <div class="text-muted small">Reviewed</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-2">
+        <div class="card text-center">
+            <div class="card-body py-3">
+                <div class="fs-3 fw-bold text-warning">{{ pending_review }}</div>
+                <div class="text-muted small">Pending</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-2">
+        <div class="card text-center">
+            <div class="card-body py-3">
+                <div class="fs-3 fw-bold text-danger">{{ validation_failures }}</div>
+                <div class="text-muted small">Validation Errors</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-2">
+        <div class="card text-center">
+            <div class="card-body py-3">
+                <div class="fs-3 fw-bold text-danger">{{ total_failed }}</div>
+                <div class="text-muted small">Failed</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-2">
+        <div class="card text-center">
+            <div class="card-body py-3">
+                <div class="fs-3 fw-bold">{{ avg_confidence }}%</div>
+                <div class="text-muted small">Avg Confidence</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Uploads (Last 14 Days)</div>
+            <div class="card-body"><canvas id="uploadsChart" height="120"></canvas></div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-header">By Shift</div>
+            <div class="card-body"><canvas id="shiftChart" height="160"></canvas></div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card">
+            <div class="card-header">By Status</div>
+            <div class="card-body"><canvas id="statusChart" height="160"></canvas></div>
+        </div>
+    </div>
+</div>
+
+<!-- Summaries Row -->
+<div class="row g-3 mb-4">
+    <!-- Shift Summary -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Shift Summary</div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead class="table-light"><tr><th>Shift</th><th>Records</th><th>Total Qty</th><th>Avg Time (hrs)</th></tr></thead>
+                    <tbody>
+                        {% for row in shift_summary %}
+                        <tr>
+                            <td>Shift {{ row.shift }}</td>
+                            <td>{{ row.count }}</td>
+                            <td>{{ row.total_quantity|default:"—" }}</td>
+                            <td>{{ row.avg_time|floatformat:1|default:"—" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="text-muted text-center">No data</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Machine Summary -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">Top Machines by Output</div>
+            <div class="table-responsive">
+                <table class="table table-sm mb-0">
+                    <thead class="table-light"><tr><th>Machine</th><th>Records</th><th>Total Qty</th></tr></thead>
+                    <tbody>
+                        {% for row in machine_summary %}
+                        <tr>
+                            <td>{{ row.machine_number }}</td>
+                            <td>{{ row.count }}</td>
+                            <td>{{ row.total_quantity|default:"—" }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="3" class="text-muted text-center">No data</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between">
+        <span>Recent Uploads</span>
+        <a href="{% url 'documents:document_list' %}" class="small text-muted">View all</a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0">
+            <thead class="table-light"><tr><th>File</th><th>Uploaded</th><th>Status</th><th>Work Order</th><th></th></tr></thead>
+            <tbody>
+                {% for doc in recent_documents %}
+                <tr>
+                    <td>{{ doc.original_filename }}</td>
+                    <td>{{ doc.uploaded_at|date:"d M, H:i" }}</td>
+                    <td>
+                        {% if doc.status == "reviewed" %}<span class="badge bg-success">Reviewed</span>
+                        {% elif doc.status == "extracted" %}<span class="badge bg-primary">Extracted</span>
+                        {% elif doc.status == "failed" %}<span class="badge bg-danger">Failed</span>
+                        {% else %}<span class="badge bg-secondary">{{ doc.status }}</span>{% endif %}
+                    </td>
+                    <td>{{ doc.record.work_order_number|default:"—" }}</td>
+                    <td><a href="{% url 'documents:document_detail' doc.pk %}" class="btn btn-sm btn-outline-secondary">View</a></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="text-center text-muted py-3">No uploads yet. <a href="{% url 'documents:upload' %}">Upload one</a></td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+const uploadsLabels = {{ uploads_labels|safe }};
+const uploadsData   = {{ uploads_data|safe }};
+const shiftLabels   = {{ shift_labels|safe }};
+const shiftCounts   = {{ shift_counts|safe }};
+const statusLabels  = {{ status_labels|safe }};
+const statusCounts  = {{ status_counts|safe }};
+
+new Chart(document.getElementById('uploadsChart'), {
+    type: 'line',
+    data: { labels: uploadsLabels, datasets: [{ label: 'Uploads', data: uploadsData, borderColor: '#212529', tension: 0.3, fill: false }] },
+    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+});
+
+new Chart(document.getElementById('shiftChart'), {
+    type: 'doughnut',
+    data: { labels: shiftLabels, datasets: [{ data: shiftCounts, backgroundColor: ['#0d6efd','#198754','#ffc107'] }] },
+    options: { plugins: { legend: { position: 'bottom' } } }
+});
+
+new Chart(document.getElementById('statusChart'), {
+    type: 'doughnut',
+    data: { labels: statusLabels, datasets: [{ data: statusCounts, backgroundColor: ['#6c757d','#0d6efd','#198754','#dc3545','#ffc107'] }] },
+    options: { plugins: { legend: { position: 'bottom' } } }
+});
+</script>
+{% endblock %}
