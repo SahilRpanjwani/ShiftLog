@@ -38,7 +38,7 @@
             <div class="card-header d-flex justify-content-between">
                 <span>Extracted Data</span>
                 {% if record %}
-                    <span class="text-muted small">Overall confidence: {{ record.overall_confidence|floatformat:0 }}%</span>
+                    <span class="text-muted small">Overall confidence: {% widthratio record.overall_confidence 1 100 %}%</span>
                 {% endif %}
             </div>
             <div class="card-body">
