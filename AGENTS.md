@@ -1,81 +1,75 @@
-# AGENTS.md — AI-Assisted Engineering Workflow
+# AGENTS.md — AI Workflow
 
-This document describes how AI tools were used during the development of ShiftLog.
+Quick breakdown of how I used AI tools while building ShiftLog.
 
 ---
 
 ## Tools Used
 
-| Tool | Role |
+| Tool | What I used it for |
 |---|---|
-| Claude (Anthropic) | Primary development assistant — architecture, code generation, debugging |
-| Google Gemini 2.0 Flash | Runtime AI — OCR and structured data extraction from uploaded documents |
+| Claude (Anthropic) | Main assistant throughout — planning, code, debugging |
+| DeepSeek | Tried during the OCR phase when I hit Claude's context limit |
+| Qodo | Same — used alongside DeepSeek to debug Tesseract/EasyOCR |
+| Google Gemini Flash | The actual extraction engine at runtime |
 
 ---
 
-## How Claude Was Used
+## How I worked with Claude
 
-### Architecture & Planning
-The overall project structure (2-app Django design, model schema, services layer separation) was planned collaboratively with Claude before writing any code. I described the assignment requirements and we reasoned through the tradeoffs — for example, keeping extraction synchronous rather than adding Celery, and using SQLite over PostgreSQL for prototype scope.
+I didn't just dump the whole assignment and ask for a complete app. I went file by file — models first, then services, then views, then urls, then templates. Each file got reviewed and tested before moving to the next. When something broke I'd paste the error and debug from there.
 
-### Code Generation
-Claude generated the initial versions of:
-- `models.py` — `Document`, `ExtractedRecord`, `FieldConfidence` schema
-- `services.py` — Gemini API integration, JSON parsing, field extraction helpers
-- `views.py` — all seven views across the documents app
-- `dashboard/views.py` — ORM aggregation queries for KPIs and chart data
-- `settings.py` — with WhiteNoise, environment variable loading, media configuration
+Claude handled the heavy lifting on:
+- The model schema (Document, ExtractedRecord, FieldConfidence)
+- The Gemini integration in services.py
+- All the Django views
+- Dashboard aggregation queries — the ORM stuff for shift summaries, machine rankings etc would have taken me much longer solo
+- Templates — basic but functional
 
-Each generated file was reviewed, placed into the project, and tested before moving to the next. Files were not blindly copy-pasted — errors and mismatches were debugged iteratively.
-
-### Debugging
-When `makemigrations` threw a `ModuleNotFoundError: No module named 'shiftlog'`, Claude identified the root cause immediately — a casing mismatch between the actual folder name `ShiftLog` and the lowercase references in `ROOT_URLCONF` and `WSGI_APPLICATION`. Fix took under a minute.
-
-When `google.generativeai` threw a deprecation warning, Claude caught that the package had been fully deprecated in favor of `google-genai` and rewrote `services.py` to use the new SDK (`google.genai.Client`, `types.Part.from_bytes`) before it became a runtime failure.
-
-### Prompting Strategy
-Rather than prompting for the entire project at once, I worked file by file — models first, then services, then views, then urls. This kept context tight and made errors easier to isolate. For the Gemini extraction prompt inside `services.py`, I iterated on the JSON schema definition to ensure Gemini returned per-field confidence scores alongside values rather than a flat extraction.
+I made the actual decisions though. What to build, what to skip, what the data model should look like, when to stop over-engineering something.
 
 ---
 
-## Gemini's Role at Runtime
+## The Gemini situation
 
-The extraction prompt instructs Gemini 2.0 Flash to:
-1. Read the uploaded document image or PDF
-2. Extract 8 operational fields (date, shift, employee number, etc.)
-3. Return a structured JSON object with a `value` and `confidence` score per field
-4. Flag completely illegible documents with confidence 0.1 across all fields
+This took longer than expected. The first few models I tried (gemini-2.0-flash-lite, gemini-2.0-flash) had zero quota on my account — turned out to be a regional restriction. At first it looked like rate limiting so I kept switching keys and models thinking that was the problem.
 
-The confidence scores drive two downstream behaviors:
-- Fields below 0.6 are flagged as uncertain and highlighted in the review UI
-- The overall confidence score is stored on the record and displayed in the document list
+Eventually wrote a standalone test script outside Django to isolate the issue. Ran it with gemini-flash-latest and it worked immediately — extracted all 3 rows from the test image correctly in one call. That's when I knew it was a model availability issue, not a key or rate limit issue.
 
 ---
 
-## Where AI Helped Most
+## The OCR detour
 
-- **Speed** — the entire backend (models, services, views, urls, settings) was produced and debugged in a single focused session rather than over days
-- **ORM aggregation queries** — the dashboard queries (shift-wise summaries, machine rankings, upload trends) would have taken significant trial and error to write from scratch; Claude produced correct Django ORM syntax directly
-- **SDK migration** — catching the `google.generativeai` deprecation before it caused a production failure saved meaningful debugging time
+While debugging Gemini I hit Claude's context limit and switched to DeepSeek and Qodo to try EasyOCR and Tesseract as local fallbacks.
+
+Short version: neither worked. EasyOCR was reading characters so badly it was unusable (confidence 0.06-0.42, misreading "BT4685" as "GLybss"). Tesseract was merging entire rows into single blobs. Spent a few hours on preprocessing — upscaling, adaptive thresholding, noise reduction — helped a bit but not enough.
+
+Once Gemini was working again it was obvious why: Gemini read the exact same image perfectly in 11 seconds. Some problems just need the right tool.
 
 ---
 
-## Where Manual Intervention Was Needed
+## Multi-row extraction
 
-- **Folder casing** — Django project was created as `ShiftLog` (capitalized) on Windows, but generated config referenced `shiftlog` (lowercase). Required manual correction in `settings.py`.
-- **Templates** — HTML templates were written manually. AI-generated templates tend to produce bloated or generic markup; writing them by hand gave better control over the review UX and confidence score highlighting.
-- **Environment setup** — virtual environment creation, package installation, and `.env` configuration were done manually.
-- **Gemini extraction quality** — the extraction prompt required a few iterations to get Gemini to reliably return `null` for missing fields rather than hallucinating plausible values.
-- **Gemini model selection** — initial models (gemini-2.0-flash-lite, gemini-2.0-flash) 
-  had zero free-tier quota on the account due to regional restrictions. Spent significant 
-  time debugging what appeared to be rate limit errors before discovering `gemini-flash-latest` 
-  was the correct model for this account. EasyOCR and Tesseract were evaluated as fallbacks 
-  during this period — both failed on this handwriting style, confirming Gemini Vision was 
-  the right approach
+The sample dataset had log sheets with multiple rows per page, not single-record forms. The original design assumed one record per document.
+
+Had to rethink the whole thing — changed the model relationship from OneToOneField to ForeignKey, updated the extraction to return a list of rows, rewrote the review UI to let you navigate between records (1 of 3, 2 of 3 etc). The save button auto-advances to the next record. Small detail but makes the review flow actually usable.
+
 ---
 
-## Reflection
+## Deployment
 
-AI-assisted development on this project wasn't about generating code blindly — it was about compressing the time between design decision and working implementation. The architecture decisions (what models to create, how to structure validation, what the dashboard should aggregate) were made by reasoning through the problem, with Claude acting as a fast implementation layer once the design was clear.
+Render free tier works fine for a demo but has two annoying limitations:
+- Uploaded files get wiped on every redeploy (no persistent disk)
+- Workers time out on long requests — had to increase gunicorn timeout to 120s for Gemini calls
 
-The result is a prototype that would have taken 3-4 days to build solo, completed within the 48-hour window.
+For production you'd swap SQLite for PostgreSQL and use S3 or Cloudinary for file storage.
+
+---
+
+## Honest take
+
+The whole backend — models, services, views, urls, settings — got built in one session that would've taken me days solo. The parts that needed human judgment were the architecture decisions upfront and the debugging when things didn't work as expected.
+
+The OCR detour was the biggest time sink and probably the most useful learning. Knowing why something doesn't work is as useful as knowing what does.
+
+Shipped within 48 hours despite a regional API block, an OCR dead end, a context limit mid-session, and the usual deployment surprises.
