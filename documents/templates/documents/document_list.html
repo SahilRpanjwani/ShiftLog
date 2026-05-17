@@ -57,7 +57,7 @@
                     <td>
 {% with first_record=doc.records.first %}
 {% if first_record %}
-    {{ first_record.overall_confidence|floatformat:0 }}%
+    {% widthratio first_record.overall_confidence 1 100 %}%
 {% else %}—{% endif %}
 {% endwith %}
                     </td>

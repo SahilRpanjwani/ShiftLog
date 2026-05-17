@@ -76,7 +76,7 @@
                     <td>{{ record.machine_number|default:"—" }}</td>
                     <td>{{ record.employee_number|default:"—" }}</td>
                     <td>{{ record.quantity_produced|default:"—" }}</td>
-                    <td>{{ record.overall_confidence|floatformat:0 }}%</td>
+                    <td>{% widthratio record.overall_confidence 1 100 %}%</td>
                     <td>
                         {% if record.is_reviewed %}
                             <span class="badge bg-success">Yes</span>
