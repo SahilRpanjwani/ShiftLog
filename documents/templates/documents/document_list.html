@@ -55,9 +55,11 @@
                         {% endif %}
                     </td>
                     <td>
-                        {% if doc.record %}
-                            {{ doc.record.overall_confidence|floatformat:0 }}%
-                        {% else %}—{% endif %}
+{% with first_record=doc.records.first %}
+{% if first_record %}
+    {{ first_record.overall_confidence|floatformat:0 }}%
+{% else %}—{% endif %}
+{% endwith %}
                     </td>
                     <td>
                         <a href="{% url 'documents:document_detail' doc.pk %}" class="btn btn-sm btn-outline-secondary">View</a>
