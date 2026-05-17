@@ -7,6 +7,44 @@
     <a href="{% url 'documents:document_detail' document.pk %}" class="btn btn-outline-secondary btn-sm">View Only</a>
 </div>
 
+<!-- Record Navigation -->
+{% if total_records > 1 %}
+<div class="d-flex justify-content-between align-items-center mb-3 p-3 bg-white rounded border">
+    <div>
+        {% if prev_record %}
+        <a href="{% url 'documents:review_record' document.pk prev_record.pk %}" class="btn btn-outline-secondary btn-sm">← Previous</a>
+        {% else %}
+        <button class="btn btn-outline-secondary btn-sm" disabled>← Previous</button>
+        {% endif %}
+    </div>
+    <span class="text-muted">
+        Record <strong>{{ current_idx }}</strong> of <strong>{{ total_records }}</strong>
+        {% if record.is_reviewed %}
+        <span class="badge bg-success ms-2">Reviewed ✓</span>
+        {% else %}
+        <span class="badge bg-secondary ms-2">Not Reviewed</span>
+        {% endif %}
+    </span>
+    <div>
+        {% if next_record %}
+        <a href="{% url 'documents:review_record' document.pk next_record.pk %}" class="btn btn-outline-secondary btn-sm">Next →</a>
+        {% else %}
+        <button class="btn btn-outline-secondary btn-sm" disabled>Next →</button>
+        {% endif %}
+    </div>
+</div>
+
+<!-- All records status strip -->
+<div class="d-flex gap-2 mb-3">
+    {% for r in all_records %}
+    <a href="{% url 'documents:review_record' document.pk r.pk %}"
+       class="btn btn-sm {% if r.pk == record.pk %}btn-dark{% elif r.is_reviewed %}btn-success{% else %}btn-outline-secondary{% endif %}">
+        {{ forloop.counter }}
+    </a>
+    {% endfor %}
+</div>
+{% endif %}
+
 <div class="row g-4">
     <!-- Preview -->
     <div class="col-md-4">
@@ -33,7 +71,7 @@
                 </div>
                 {% endif %}
 
-                <form method="post">
+                <form method="post" autocomplete="off">
                     {% csrf_token %}
 
                     <!-- Date -->
@@ -120,7 +158,10 @@
                         <textarea name="reviewer_notes" class="form-control" rows="2">{{ record.reviewer_notes }}</textarea>
                     </div>
 
-                    <button type="submit" class="btn btn-dark w-100">Save & Mark Reviewed</button>
+                    <button type="submit" class="btn btn-dark w-100">
+                        Save & Mark Reviewed
+                        {% if next_record %}→ Next Record{% endif %}
+                    </button>
                 </form>
             </div>
         </div>

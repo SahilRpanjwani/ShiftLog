@@ -114,11 +114,24 @@ def document_detail(request, pk):
 
 # ─── Review ───────────────────────────────────────────────────────────────────
 
-def review(request, pk):
+def review(request, pk, record_id=None):
     document = get_object_or_404(Document, pk=pk)
-    record = ExtractedRecord.objects.filter(document=document).first()
-    if not record:
-        record = ExtractedRecord.objects.create(document=document)
+    all_records = list(ExtractedRecord.objects.filter(document=document).order_by('id'))
+
+    if not all_records:
+        blank = ExtractedRecord.objects.create(document=document)
+        all_records = [blank]
+
+    # Pick the right record
+    if record_id:
+        record = get_object_or_404(ExtractedRecord, pk=record_id, document=document)
+    else:
+        record = all_records[0]
+
+    # Navigation
+    current_idx = next((i for i, r in enumerate(all_records) if r.pk == record.pk), 0)
+    prev_record = all_records[current_idx - 1] if current_idx > 0 else None
+    next_record = all_records[current_idx + 1] if current_idx < len(all_records) - 1 else None
 
     field_confidences = {fc.field_name: fc for fc in record.field_confidences.all()}
 
@@ -149,14 +162,19 @@ def review(request, pk):
         record.reviewed_at = timezone.now()
         record.save()
 
-        document.status = "reviewed"
-        document.save()
+        # Mark document as reviewed only when ALL records are reviewed
+        if all(r.is_reviewed for r in ExtractedRecord.objects.filter(document=document)):
+            document.status = "reviewed"
+            document.save()
 
         if errors:
-            messages.warning(request, f"Record saved with {len(errors)} validation issue(s). Please check highlighted fields.")
+            messages.warning(request, f"Record saved with {len(errors)} validation issue(s).")
         else:
             messages.success(request, "Record reviewed and saved successfully.")
 
+        # Go to next record if exists, otherwise go to detail
+        if next_record:
+            return redirect("documents:review_record", pk=document.pk, record_id=next_record.pk)
         return redirect("documents:document_detail", pk=document.pk)
 
     context = {
@@ -165,9 +183,13 @@ def review(request, pk):
         "field_confidences": field_confidences,
         "shift_choices": ExtractedRecord.SHIFT_CHOICES,
         "validation_error_map": {e["field"]: e["message"] for e in record.validation_errors},
+        "all_records": all_records,
+        "current_idx": current_idx + 1,
+        "total_records": len(all_records),
+        "prev_record": prev_record,
+        "next_record": next_record,
     }
     return render(request, "documents/review.html", context)
-
 
 # ─── Re-extract ───────────────────────────────────────────────────────────────
 

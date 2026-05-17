@@ -11,4 +11,5 @@ urlpatterns = [
     path("<uuid:pk>/re-extract/", views.re_extract, name="re_extract"),
     path("<uuid:pk>/delete/", views.delete_document, name="delete_document"),
     path("<uuid:pk>/status/", views.extraction_status, name="extraction_status"),
+    path("<uuid:pk>/review/<int:record_id>/", views.review, name="review_record"),
 ]
