@@ -97,10 +97,9 @@ def dashboard(request):
     # ── Recent activity feed (first record per document) ─────────────────────
     recent_docs = Document.objects.order_by("-uploaded_at")[:8]
     # Prefetch first record for each doc to avoid N+1 queries
-    recent_docs = recent_docs.prefetch_related("extracted_records")
-    # Attach the first record in Python – template can iterate doc.first_record
+    recent_docs = recent_docs.prefetch_related("records")
     for doc in recent_docs:
-        doc.first_record = doc.extracted_records.first()
+        doc.first_record = doc.records.first()
 
     context = {
         # KPIs

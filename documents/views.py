@@ -66,14 +66,14 @@ def upload(request):
 # ─── Document List ────────────────────────────────────────────────────────────
 
 def document_list(request):
-    queryset = Document.objects.all().prefetch_related("extracted_records")
+    queryset =Document.objects.all().prefetch_related("records")
 
     search_query = request.GET.get("search", "").strip()
     if search_query:
         queryset = queryset.filter(
             Q(original_filename__icontains=search_query) |
-            Q(extracted_records__work_order_number__icontains=search_query) |
-            Q(extracted_records__machine_number__icontains=search_query)
+            Q(records__work_order_number__icontains=search_query) |
+            Q(records__machine_number__icontains=search_query)
         ).distinct()
 
     status_filter = request.GET.get("status", "").strip()
